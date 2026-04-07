@@ -40,12 +40,8 @@ export function saveSettings(settings) {
 }
 
 export function getApiKey(key) {
-  // Check Vite env first, then localStorage settings
-  const envMap = {
-    claude: import.meta.env.VITE_CLAUDE_API_KEY,
-    googleMaps: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
-  };
-  if (envMap[key]) return envMap[key];
-  const settings = loadSettings();
-  return settings[key] || '';
+  if (key === 'claude') {
+    return import.meta.env.VITE_CLAUDE_API_KEY || loadSettings().claude || '';
+  }
+  return '';
 }
