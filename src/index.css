@@ -1,0 +1,45 @@
+@import "tailwindcss";
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes popIn {
+  0%   { transform: scale(0.85); opacity: 0; }
+  70%  { transform: scale(1.03); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes barGrow {
+  from { width: 0%; }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.animate-fade-up { animation: fadeUp 0.35s ease both; }
+.animate-pop-in  { animation: popIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+.animate-bar-grow { animation: barGrow 1s ease-out both; }
+.animate-spin { animation: spin 0.8s linear infinite; }
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
+  background: #0a0f1e;
+  color: #cbd5e1;
+  min-height: 100svh;
+}
+
+#root {
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
