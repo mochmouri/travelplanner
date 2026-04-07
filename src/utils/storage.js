@@ -40,8 +40,8 @@ export function saveSettings(settings) {
 }
 
 export function getApiKey(key) {
-  if (key === 'claude') {
-    return import.meta.env.VITE_CLAUDE_API_KEY || loadSettings().claude || '';
+  if (key === 'gemini') {
+    return import.meta.env.VITE_GEMINI_API_KEY || loadSettings().gemini || '';
   }
   return '';
 }

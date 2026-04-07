@@ -26,7 +26,7 @@ export default function PlaceImport({ trip, onConfirm, onBack }) {
   const [newPlace, setNewPlace] = useState({ name: '', category: 'must-see', description: '', durationMinutes: 90 });
   const [addingPlace, setAddingPlace] = useState(false);
 
-  const hasApiKey = !!getApiKey('claude');
+  const hasApiKey = !!getApiKey('gemini');
 
   async function fetchSuggestions() {
     setError('');
@@ -44,7 +44,7 @@ export default function PlaceImport({ trip, onConfirm, onBack }) {
       setPlaces([...attractions, ...restaurants]);
     } catch (err) {
       setError(err.message === 'NO_KEY'
-        ? 'No Claude API key. Add one in Settings.'
+        ? 'No Gemini API key. Add one in Settings.'
         : `Failed: ${err.message}`);
     } finally {
       setLoading(false);

@@ -44,7 +44,7 @@ export default function ItineraryView({ trip, onBack, onSetAccommodation }) {
       const result = await suggestAccommodation(trip.destination, centroids);
       onSetAccommodation(result);
     } catch (err) {
-      setAccomError(err.message === 'NO_KEY' ? 'No Claude API key.' : err.message);
+      setAccomError(err.message === 'NO_KEY' ? 'No Gemini API key. Add one in Settings.' : err.message);
     } finally {
       setLoadingAccom(false);
     }
@@ -135,14 +135,14 @@ export default function ItineraryView({ trip, onBack, onSetAccommodation }) {
             {accomError && <p className="text-xs text-zinc-400 mb-3">{accomError}</p>}
             <button
               onClick={fetchAccommodation}
-              disabled={loadingAccom || !getApiKey('claude')}
+              disabled={loadingAccom || !getApiKey('gemini')}
               className="flex items-center gap-2 text-sm text-zinc-300 hover:text-white
                 transition-colors disabled:opacity-50 font-medium"
             >
               {loadingAccom ? <Loader2 size={14} className="animate-spin" /> : <MapPin size={14} />}
               {loadingAccom ? 'Finding best areas…' : 'Suggest accommodation areas'}
             </button>
-            {!getApiKey('claude') && (
+            {!getApiKey('gemini') && (
               <p className="text-xs text-zinc-700 mt-1">Requires a Claude API key.</p>
             )}
           </div>
