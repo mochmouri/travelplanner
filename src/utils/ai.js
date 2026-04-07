@@ -1,6 +1,6 @@
 import { getApiKey } from './storage.js';
 
-const GEMINI_MODEL = 'gemini-2.0-flash';
+const GEMINI_MODEL = 'gemini-2.5-flash';
 
 async function callGemini(prompt) {
   const apiKey = getApiKey('gemini');
