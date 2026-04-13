@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import LandingPage from './components/LandingPage.jsx';
 import Dashboard from './components/Dashboard.jsx';
 import TripSetup from './components/TripSetup.jsx';
 import PlaceImport from './components/PlaceImport.jsx';
@@ -6,17 +7,23 @@ import RouteBuilder from './components/RouteBuilder.jsx';
 import ItineraryView from './components/ItineraryView.jsx';
 import Settings from './components/Settings.jsx';
 import useTrip from './hooks/useTrip.js';
-import { saveTrip } from './utils/storage.js';
+import { saveTrip, loadTrips } from './utils/storage.js';
 
 export default function App() {
-  const [screen, setScreen] = useState('dashboard');
-  const [prevScreen, setPrevScreen] = useState('dashboard');
-  const { trip, initTrip, loadTrip, arrangeAndSave, movePlaceToDay, reorderPlace, setAccommodation } = useTrip();
+  const [screen, setScreen] = useState('landing');
+  const [prevScreen, setPrevScreen] = useState('landing');
+  const { trip, initTrip, loadTrip, arrangeAndSave, movePlaceToDay, addFoodToRoute, reorderPlace, setAccommodation, setHalalGuide } = useTrip();
 
   function go(to) {
     setPrevScreen(screen);
     setScreen(to);
   }
+
+  // Landing → Setup (new trip)
+  function handlePlanTrip() { go('setup'); }
+
+  // Landing → Dashboard
+  function handleOpenApp() { go('dashboard'); }
 
   // Dashboard → Setup (new trip)
   function handleNewTrip() { go('setup'); }
@@ -50,22 +57,32 @@ export default function App() {
   // Back navigation
   function handleBack() {
     const backMap = {
-      setup: 'dashboard',
+      dashboard: 'landing',
+      setup: prevScreen || 'landing',
       import: 'setup',
       builder: 'dashboard',
       itinerary: 'builder',
       settings: prevScreen,
     };
-    go(backMap[screen] || 'dashboard');
+    go(backMap[screen] || 'landing');
   }
 
   return (
     <div className="min-h-svh">
+      {screen === 'landing' && (
+        <LandingPage
+          onPlanTrip={handlePlanTrip}
+          onOpenApp={handleOpenApp}
+          hasTrips={loadTrips().length > 0}
+        />
+      )}
+
       {screen === 'dashboard' && (
         <Dashboard
           onNewTrip={handleNewTrip}
           onOpenTrip={handleOpenTrip}
           onSettings={() => go('settings')}
+          onBack={handleBack}
         />
       )}
 
@@ -93,6 +110,7 @@ export default function App() {
           trip={trip}
           onMovePlaceToDay={movePlaceToDay}
           onReorderPlace={reorderPlace}
+          onAddFoodToRoute={addFoodToRoute}
           onContinue={handleContinueToItinerary}
           onBack={handleBack}
         />
@@ -103,6 +121,7 @@ export default function App() {
           trip={trip}
           onBack={handleBack}
           onSetAccommodation={handleSetAccommodation}
+          onSetHalalGuide={setHalalGuide}
         />
       )}
     </div>

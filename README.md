@@ -1,21 +1,42 @@
-# React + Vite
+# Travel Planner
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A day-by-day travel planner for Muslim travellers.
 
-Currently, two official plugins are available:
+**Live:** https://mochmouri.github.io/travelplanner/
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+---
 
-## React Compiler
+## What it does
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- Generates walkable day routes from AI-suggested attractions, exported to Google Maps
+- Suggests halal restaurants near each day's stops
+- Shows prayer spaces (mosques, musallas) alongside your route
+- Displays daily prayer times (Fajr → Isha) for any destination
+- Generates a halal-friendliness guide per destination (food availability, dress norms)
 
-## Expanding the ESLint configuration
+## How it works
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+Client-side only — no backend, no accounts. Everything runs in the browser.
 
+- **AI suggestions**: Gemini 2.5 Flash via direct API call (user-supplied key)
+- **Maps**: React-Leaflet with CartoDB Dark Matter tiles (no key needed)
+- **Prayer times**: Aladhan.com public API (no key needed)
+- **Storage**: localStorage only
 
-## Gemini API Key
-An LLM API key is needed so that locations can be researched. Google's Gemini was chosen as it has free credits. 
-https://aistudio.google.com/api-keys
+## Setup
+
+```bash
+npm install
+npm run dev
+```
+
+Add a Gemini API key in Settings (or set `VITE_GEMINI_API_KEY` in a `.env` file).
+Get a free key (no billing required) at [aistudio.google.com](https://aistudio.google.com) → Get API key.
+
+## Deploy
+
+```bash
+npm run deploy
+```
+
+Deploys to GitHub Pages via `gh-pages`.

@@ -87,7 +87,7 @@ function TripCard({ trip, onOpen, onDelete }) {
   );
 }
 
-export default function Dashboard({ onNewTrip, onOpenTrip, onSettings }) {
+export default function Dashboard({ onNewTrip, onOpenTrip, onSettings, onBack }) {
   const [trips, setTrips] = useState([]);
 
   useEffect(() => { setTrips(loadTrips()); }, []);
@@ -99,21 +99,28 @@ export default function Dashboard({ onNewTrip, onOpenTrip, onSettings }) {
 
   return (
     <div className="min-h-svh px-5 py-10 max-w-xl mx-auto w-full">
-      {/* Header */}
-      <div className="flex items-start justify-between mb-12">
-        <div>
-          <p className="text-xs text-zinc-600 uppercase tracking-widest font-medium mb-2">Personal</p>
-          <h1 className="text-2xl font-bold text-white tracking-tight">Travel Planner</h1>
-          <p className="text-sm text-zinc-500 mt-1">Plan it once. Do it properly.</p>
-        </div>
+      {/* Top nav */}
+      <div className="flex items-center justify-between mb-10">
+        <button
+          onClick={onBack}
+          className="text-xs text-zinc-700 hover:text-zinc-400 transition-colors duration-150"
+        >
+          ← Home
+        </button>
         <button
           onClick={onSettings}
-          className="mt-1 p-2 rounded-md border border-zinc-800 text-zinc-500
+          className="p-2 rounded-md border border-zinc-800 text-zinc-500
             hover:border-zinc-600 hover:text-white transition-all duration-150"
           aria-label="Settings"
         >
           <Settings size={16} />
         </button>
+      </div>
+
+      {/* Header */}
+      <div className="mb-12">
+        <h1 className="text-2xl font-bold text-white tracking-tight">Your trips</h1>
+        <p className="text-sm text-zinc-500 mt-1">Plan it once. Do it properly.</p>
       </div>
 
       {/* New trip */}
