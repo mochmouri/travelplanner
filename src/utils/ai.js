@@ -13,7 +13,11 @@ async function callGemini(prompt) {
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
       contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: { temperature: 0.7, maxOutputTokens: 4096 },
+      generationConfig: {
+        temperature: 0.7,
+        maxOutputTokens: 8192,
+        responseMimeType: "application/json"
+      }
     }),
   });
 
@@ -23,13 +27,51 @@ async function callGemini(prompt) {
   }
 
   const data = await res.json();
-  return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  return data.candidates?.[0]?.content?.parts
+    ?.map(p => p.text || '')
+    .join('') || '';
 }
 
 function parseJSON(text) {
-  const match = text.match(/```(?:json)?\s*([\s\S]*?)```/) || text.match(/(\[[\s\S]*\]|\{[\s\S]*\})/);
-  if (!match) throw new Error('No JSON found in response');
-  return JSON.parse(match[1]);
+  // First try direct parse
+  try {
+    return JSON.parse(text);
+  } catch (e) {}
+
+  // Extract first valid JSON block more safely
+  let firstBrace = text.indexOf('{');
+  let firstBracket = text.indexOf('[');
+
+  let start = -1;
+  let openChar = '';
+
+  if (firstBracket !== -1 && (firstBracket < firstBrace || firstBrace === -1)) {
+    start = firstBracket;
+    openChar = '[';
+  } else if (firstBrace !== -1) {
+    start = firstBrace;
+    openChar = '{';
+  }
+
+  if (start === -1) throw new Error('No JSON found');
+
+  let stack = 0;
+  let end = -1;
+
+  for (let i = start; i < text.length; i++) {
+    if (text[i] === openChar) stack++;
+    if (text[i] === (openChar === '[' ? ']' : '}')) stack--;
+
+    if (stack === 0) {
+      end = i;
+      break;
+    }
+  }
+
+  if (end === -1) throw new Error('Incomplete JSON');
+
+  const jsonString = text.slice(start, end + 1);
+  return JSON.parse(jsonString);
 }
 
 export async function suggestAttractions(destination, numDays, focus) {
@@ -51,14 +93,16 @@ Return ONLY a JSON array with no other text or markdown. Each object must have e
     "lat": number,
     "lng": number,
     "description": "2-3 engaging sentences about why this place is worth visiting",
-    "durationMinutes": number
+    "durationMinutes": number,
+    "openingHours": "e.g. 09:00–17:00, closed Mondays" or null if unknown
   }
 ]
 
 Include 12-18 places total. Mix iconic landmarks with lesser-known gems. Use accurate coordinates.`;
 
   const text = await callGemini(prompt);
-  const places = parseJSON(text);
+  const raw = parseJSON(text);
+  const places = Array.isArray(raw) ? raw : (Object.values(raw).find(v => Array.isArray(v)) ?? []);
   return places.map(p => ({
     id: crypto.randomUUID(),
     category: 'must-see',
@@ -87,7 +131,8 @@ Return ONLY a JSON array with no other text or markdown. Each object must have e
 Include 8-10 restaurants. Only genuinely halal options. Use accurate coordinates.`;
 
   const text = await callGemini(prompt);
-  const places = parseJSON(text);
+  const raw = parseJSON(text);
+  const places = Array.isArray(raw) ? raw : (Object.values(raw).find(v => Array.isArray(v)) ?? []);
   return places.map(p => ({
     id: crypto.randomUUID(),
     category: 'food',
@@ -120,4 +165,73 @@ export async function geocodePlace(name, destination) {
   const prompt = `What are the approximate GPS coordinates of "${name}" in ${destination}? Return ONLY JSON: {"lat": number, "lng": number}`;
   const text = await callGemini(prompt);
   return parseJSON(text);
+}
+
+export async function suggestMosques(destination) {
+  const prompt = `Suggest prayer spaces (mosques and musallas) for Muslim travellers in ${destination}.
+
+Return ONLY a JSON array with no other text or markdown. Each object must have exactly these fields:
+[
+  {
+    "name": "mosque or prayer space name",
+    "lat": number,
+    "lng": number,
+    "description": "1-2 sentences on location and any visitor notes",
+    "notes": "e.g. open to visitors, wudu facilities available, Friday prayer at 13:15"
+  }
+]
+
+Include 4-8 options. Prioritise central, well-known, and visitor-friendly mosques. Use accurate coordinates.`;
+
+  const text = await callGemini(prompt);
+  const raw = parseJSON(text);
+  const places = Array.isArray(raw) ? raw : (Object.values(raw).find(v => Array.isArray(v)) ?? []);
+  return places.map(p => ({
+    id: crypto.randomUUID(),
+    category: 'mosque',
+    durationMinutes: 30,
+    ...p,
+    type: 'mosque',
+  }));
+}
+
+export async function suggestHalalGuide(destination) {
+  const prompt = `You are an expert on halal travel. Provide a brief halal travel guide for ${destination}.
+
+Return ONLY JSON with no other text or markdown:
+{
+  "overview": "2-3 sentences on overall halal-friendliness and Muslim-friendliness of the destination",
+  "food": "2-3 sentences on halal food availability, common cuisines, and what to watch out for",
+  "dress": "1-2 sentences on dress norms and expectations for Muslim travellers"
+}`;
+
+  const text = await callGemini(prompt);
+  return parseJSON(text);
+}
+
+// date: 'YYYY-MM-DD' (HTML date input format), converted to DD-MM-YYYY for Aladhan
+// method: Aladhan calculation method number (default 2 = ISNA)
+export async function fetchPrayerTimes(destination, date = null, method = 2) {
+  const city = destination.split(',')[0].trim();
+  const params = `?city=${encodeURIComponent(city)}&country=&method=${method}`;
+  let aladhanDate = null;
+  if (date) {
+    const [y, m, d] = date.split('-');
+    aladhanDate = `${d}-${m}-${y}`;
+  }
+  const url = aladhanDate
+    ? `https://api.aladhan.com/v1/timingsByCity/${aladhanDate}${params}`
+    : `https://api.aladhan.com/v1/timingsByCity${params}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Prayer times API error ${res.status}`);
+  const data = await res.json();
+  const t = data?.data?.timings;
+  if (!t) throw new Error('No prayer times returned');
+  return {
+    Fajr:    t.Fajr,
+    Dhuhr:   t.Dhuhr,
+    Asr:     t.Asr,
+    Maghrib: t.Maghrib,
+    Isha:    t.Isha,
+  };
 }

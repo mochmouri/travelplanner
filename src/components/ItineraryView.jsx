@@ -1,9 +1,10 @@
-import { useState } from 'react';
-import { ArrowLeft, Download, MapPin, Coffee, Star, CircleDot, Loader2 } from 'lucide-react';
-import { suggestAccommodation } from '../utils/ai.js';
+import { useState, useEffect } from 'react';
+import { ArrowLeft, Download, MapPin, Coffee, Star, CircleDot, Loader2, ExternalLink, Moon, ChevronDown, ChevronUp } from 'lucide-react';
+import { suggestAccommodation, suggestHalalGuide, fetchPrayerTimes } from '../utils/ai.js';
 import { getDayCentroids } from '../utils/cluster.js';
-import { getApiKey } from '../utils/storage.js';
+import { getApiKey, loadSettings } from '../utils/storage.js';
 import { downloadTripPDF } from '../utils/pdf.js';
+import { haversineKm, walkMins, buildGoogleMapsUrl } from '../utils/route.js';
 import PlaceCard from './PlaceCard.jsx';
 
 function fmt(mins) {
@@ -20,17 +21,40 @@ function addMinutes(hhmm, mins) {
 
 function estimateTimes(places, startTime) {
   let current = startTime;
-  return places.map(p => {
+  return places.map((p, i) => {
     const t = current;
-    current = addMinutes(current, (p.durationMinutes || 60) + 20);
-    return { ...p, _time: t };
+    const next = places[i + 1];
+    const walkToNext = next ? Math.max(5, walkMins(haversineKm(p, next))) : 0;
+    current = addMinutes(current, (p.durationMinutes || 60) + (next ? walkToNext : 0));
+    return { ...p, _time: t, _walkToNext: walkToNext };
   });
 }
 
-export default function ItineraryView({ trip, onBack, onSetAccommodation }) {
+export default function ItineraryView({ trip, onBack, onSetAccommodation, onSetHalalGuide }) {
   const [loadingAccom, setLoadingAccom] = useState(false);
   const [accomError, setAccomError] = useState('');
   const [exportingPDF, setExportingPDF] = useState(false);
+  const [prayerTimes, setPrayerTimes] = useState(null);
+  const [prayerTimesOpen, setPrayerTimesOpen] = useState(false);
+  const [prayerDate, setPrayerDate] = useState(trip.startDate || '');
+  const [loadingGuide, setLoadingGuide] = useState(false);
+  const [guideOpen, setGuideOpen] = useState(true);
+
+  useEffect(() => {
+    const method = loadSettings().prayerMethod ?? 2;
+    fetchPrayerTimes(trip.destination, prayerDate || null, method)
+      .then(setPrayerTimes)
+      .catch(() => {}); // fail silently — it's advisory
+  }, [trip.destination, prayerDate]);
+
+  useEffect(() => {
+    if (trip.halalGuide || !getApiKey('gemini')) return;
+    setLoadingGuide(true);
+    suggestHalalGuide(trip.destination)
+      .then(guide => { onSetHalalGuide(guide); })
+      .catch(() => {})
+      .finally(() => setLoadingGuide(false));
+  }, [trip.destination, trip.halalGuide]);
 
   const numDays = trip.numDays;
   const places = trip.places || [];
@@ -58,7 +82,16 @@ export default function ItineraryView({ trip, onBack, onSetAccommodation }) {
   }
 
   function getDayPlaces(day) {
-    return [...places.filter(p => p.day === day)].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+    return [...places.filter(p => p.day === day && p.order !== undefined)]
+      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  }
+
+  function getDayFood(day) {
+    return places.filter(p => p.day === day && p.category === 'food' && p.order === undefined);
+  }
+
+  function getDayMosques(day) {
+    return places.filter(p => p.day === day && p.category === 'mosque');
   }
 
   return (
@@ -88,7 +121,7 @@ export default function ItineraryView({ trip, onBack, onSetAccommodation }) {
             {trip.startTime} – {trip.endTime}
           </span>
           <span className="px-3 py-1 rounded-md border border-zinc-800 text-xs text-zinc-400">
-            {places.length} places
+            {places.filter(p => p.order !== undefined).length} places
           </span>
           <span className="px-3 py-1 rounded-md border border-zinc-800 text-xs text-zinc-400">
             {numDays} {numDays === 1 ? 'day' : 'days'}
@@ -109,6 +142,102 @@ export default function ItineraryView({ trip, onBack, onSetAccommodation }) {
             {exportingPDF ? 'Generating PDF…' : 'Export full itinerary (PDF)'}
           </span>
         </button>
+
+        {/* Prayer times */}
+        <div className="mt-4 border border-teal-900/40 rounded-lg overflow-hidden">
+          <button
+            onClick={() => setPrayerTimesOpen(v => !v)}
+            className="w-full flex items-center justify-between px-4 py-3 text-left"
+          >
+            <span className="flex items-center gap-2 text-xs font-medium text-teal-400 uppercase tracking-widest">
+              <Moon size={12} />
+              Prayer times
+              {prayerDate
+                ? <span className="text-teal-700 normal-case tracking-normal">
+                    {new Date(prayerDate + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                  </span>
+                : <span className="text-teal-700 normal-case tracking-normal">today</span>
+              }
+            </span>
+            {prayerTimesOpen
+              ? <ChevronUp size={12} className="text-zinc-600" />
+              : <ChevronDown size={12} className="text-zinc-600" />}
+          </button>
+          {prayerTimesOpen && (
+            <div className="px-4 pb-4 flex flex-col gap-4">
+              {/* Date selector */}
+              <div className="flex items-center gap-3">
+                <label className="text-xs text-zinc-600 flex-shrink-0">Date</label>
+                <input
+                  type="date"
+                  value={prayerDate}
+                  onChange={e => setPrayerDate(e.target.value)}
+                  className="px-3 py-1.5 rounded-md bg-black border border-zinc-800 text-white text-xs
+                    focus:outline-none focus:border-zinc-600 transition-colors [color-scheme:dark]"
+                />
+                {prayerDate && (
+                  <button
+                    onClick={() => setPrayerDate('')}
+                    className="text-xs text-zinc-700 hover:text-zinc-400 transition-colors"
+                  >
+                    Reset to today
+                  </button>
+                )}
+              </div>
+              {/* Times grid */}
+              {prayerTimes ? (
+                <div className="grid grid-cols-5 gap-2">
+                  {Object.entries(prayerTimes).map(([name, time]) => (
+                    <div key={name} className="text-center">
+                      <p className="text-xs text-zinc-600 mb-0.5">{name}</p>
+                      <p className="text-sm font-mono text-white">{time}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-zinc-600">Loading prayer times…</p>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Halal guide */}
+        {(trip.halalGuide || loadingGuide) && (
+          <div className="mt-3 border border-zinc-800 rounded-lg overflow-hidden">
+            <button
+              onClick={() => setGuideOpen(v => !v)}
+              className="w-full flex items-center justify-between px-4 py-3 text-left"
+            >
+              <span className="text-xs font-medium text-zinc-400 uppercase tracking-widest">
+                Halal travel guide
+              </span>
+              {loadingGuide
+                ? <Loader2 size={12} className="animate-spin text-zinc-600" />
+                : guideOpen
+                  ? <ChevronUp size={12} className="text-zinc-600" />
+                  : <ChevronDown size={12} className="text-zinc-600" />}
+            </button>
+            {guideOpen && trip.halalGuide && (
+              <div className="px-4 pb-4 flex flex-col gap-3">
+                {trip.halalGuide.overview && (
+                  <p className="text-xs text-zinc-400 leading-relaxed">{trip.halalGuide.overview}</p>
+                )}
+                {trip.halalGuide.food && (
+                  <div>
+                    <p className="text-xs font-medium text-zinc-500 mb-1">Food</p>
+                    <p className="text-xs text-zinc-500 leading-relaxed">{trip.halalGuide.food}</p>
+                  </div>
+                )}
+                {trip.halalGuide.dress && (
+                  <div>
+                    <p className="text-xs font-medium text-zinc-500 mb-1">Dress</p>
+                    <p className="text-xs text-zinc-500 leading-relaxed">{trip.halalGuide.dress}</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Accommodation */}
@@ -143,7 +272,7 @@ export default function ItineraryView({ trip, onBack, onSetAccommodation }) {
               {loadingAccom ? 'Finding best areas…' : 'Suggest accommodation areas'}
             </button>
             {!getApiKey('gemini') && (
-              <p className="text-xs text-zinc-700 mt-1">Requires a Claude API key.</p>
+              <p className="text-xs text-zinc-700 mt-1">Requires a Gemini API key.</p>
             )}
           </div>
         )}
@@ -151,32 +280,142 @@ export default function ItineraryView({ trip, onBack, onSetAccommodation }) {
 
       {/* Day sections */}
       {Array.from({ length: numDays }, (_, i) => i + 1).map(day => {
-        const dayPlaces = estimateTimes(getDayPlaces(day), trip.startTime || '09:00');
+        const raw = getDayPlaces(day);
+        const dayPlaces = estimateTimes(raw, trip.startTime || '09:00');
+        const dayFood = getDayFood(day);
+        const dayMosques = getDayMosques(day);
         const total = dayPlaces.reduce((s, p) => s + (p.durationMinutes || 0), 0);
+        const walkTotal = dayPlaces.reduce((s, p) => s + (p._walkToNext || 0), 0);
+        const mapsUrl = buildGoogleMapsUrl(dayPlaces);
 
         return (
           <div key={day} className="px-5 mb-10 max-w-xl mx-auto w-full">
-            <div className="flex items-center gap-3 mb-4">
+            {/* Day header */}
+            <div className="flex items-center gap-3 mb-2">
               <p className="text-xs font-medium text-white uppercase tracking-widest">Day {day}</p>
               <div className="flex-1 h-px bg-zinc-900" />
-              <p className="text-xs text-zinc-600">{dayPlaces.length} stops · {fmt(total)}</p>
+              <p className="text-xs text-zinc-600">{dayPlaces.length} stops · {fmt(total + walkTotal)}</p>
             </div>
+
+            {/* Maps link */}
+            {mapsUrl && (
+              <a
+                href={mapsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 text-xs text-zinc-600 hover:text-white transition-colors mb-4"
+              >
+                <ExternalLink size={11} />
+                Open Day {day} route in Google Maps
+              </a>
+            )}
 
             {dayPlaces.length === 0 ? (
               <p className="text-zinc-700 text-sm">No places assigned.</p>
             ) : (
-              <div className="flex flex-col gap-3">
-                {dayPlaces.map((place, idx) => (
-                  <div key={place.id}>
-                    <div className="flex items-center gap-3 mb-1.5">
-                      <span className="text-xs text-zinc-700 tabular-nums w-4 text-right">{idx + 1}</span>
-                      <span className="text-xs text-zinc-600 font-mono">{place._time}</span>
-                      {place.category === 'food' && <Coffee size={10} className="text-zinc-600" />}
-                      {place.category === 'must-see' && <Star size={10} className="text-zinc-600" />}
+              <div className="flex flex-col">
+                {dayPlaces.map((place, idx) => {
+                  const km = place._walkToNext ? haversineKm(place, dayPlaces[idx + 1]) : 0;
+                  return (
+                    <div key={place.id}>
+                      <div className="flex items-center gap-3 mb-1.5">
+                        <span className="text-xs text-zinc-700 tabular-nums w-4 text-right">{idx + 1}</span>
+                        <span className="text-xs text-zinc-600 font-mono">{place._time}</span>
+                        {place.category === 'food' && <Coffee size={10} className="text-zinc-600" />}
+                        {place.category === 'must-see' && <Star size={10} className="text-zinc-600" />}
+                      </div>
+                      <PlaceCard place={place} />
+                      {idx < dayPlaces.length - 1 && place._walkToNext > 0 && (
+                        <div className="flex items-center gap-2 py-1 pl-7 mb-1">
+                          <div className="w-px h-4 bg-zinc-800 ml-0.5" />
+                          <span className="text-xs text-zinc-700">
+                            ~{place._walkToNext} min walk · {km < 1 ? `${Math.round(km * 1000)}m` : `${km.toFixed(1)}km`}
+                          </span>
+                        </div>
+                      )}
                     </div>
-                    <PlaceCard place={place} />
-                  </div>
-                ))}
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Food recommendations */}
+            {dayFood.length > 0 && (
+              <div className="mt-6">
+                <div className="flex items-center gap-3 mb-3">
+                  <p className="text-xs font-medium text-zinc-600 uppercase tracking-widest">
+                    Nearby restaurants
+                  </p>
+                  <div className="flex-1 h-px bg-zinc-900" />
+                </div>
+                <div className="flex flex-col gap-2">
+                  {dayFood.map(food => (
+                    <div key={food.id} className="border border-zinc-800 rounded-lg p-3">
+                      <div className="flex items-start justify-between gap-3 mb-1">
+                        <p className="text-sm font-semibold text-white leading-snug">{food.name}</p>
+                        {food.lat && food.lng && (
+                          <a
+                            href={`https://maps.google.com/?q=${food.lat},${food.lng}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-zinc-700 hover:text-white transition-colors flex-shrink-0"
+                            title="Open in Google Maps"
+                          >
+                            <ExternalLink size={12} />
+                          </a>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap gap-2 mb-1">
+                        {food.cuisine && <span className="text-xs text-zinc-500">{food.cuisine}</span>}
+                        {food.durationMinutes && <span className="text-xs text-zinc-600">{fmt(food.durationMinutes)}</span>}
+                      </div>
+                      {food.description && (
+                        <p className="text-xs text-zinc-500 leading-relaxed">{food.description}</p>
+                      )}
+                      {food.notes && (
+                        <p className="text-xs text-zinc-400 border-l border-zinc-700 pl-2 mt-1">{food.notes}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Prayer space suggestions */}
+            {dayMosques.length > 0 && (
+              <div className="mt-5">
+                <div className="flex items-center gap-3 mb-3">
+                  <p className="text-xs font-medium text-teal-700 uppercase tracking-widest">
+                    Prayer spaces
+                  </p>
+                  <div className="flex-1 h-px bg-zinc-900" />
+                </div>
+                <div className="flex flex-col gap-2">
+                  {dayMosques.map(mosque => (
+                    <div key={mosque.id} className="border border-teal-900/40 rounded-lg p-3">
+                      <div className="flex items-start justify-between gap-3 mb-1">
+                        <p className="text-sm font-semibold text-white leading-snug">{mosque.name}</p>
+                        {mosque.lat && mosque.lng && (
+                          <a
+                            href={`https://maps.google.com/?q=${mosque.lat},${mosque.lng}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-zinc-700 hover:text-white transition-colors flex-shrink-0"
+                            title="Open in Google Maps"
+                          >
+                            <ExternalLink size={12} />
+                          </a>
+                        )}
+                      </div>
+                      {mosque.description && (
+                        <p className="text-xs text-zinc-500 leading-relaxed">{mosque.description}</p>
+                      )}
+                      {mosque.notes && (
+                        <p className="text-xs text-zinc-400 border-l border-teal-900 pl-2 mt-1">{mosque.notes}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>

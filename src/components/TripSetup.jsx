@@ -26,6 +26,7 @@ export default function TripSetup({ onSubmit, onBack }) {
     destination: '',
     name: '',
     numDays: 3,
+    startDate: '',
     startTime: '09:00',
     endTime: '21:00',
     focus: 'balanced',
@@ -77,6 +78,17 @@ export default function TripSetup({ onSubmit, onBack }) {
             onChange={e => set('name', e.target.value)}
             className="w-full px-4 py-3 rounded-md bg-black border border-zinc-800 text-white
               text-sm placeholder-zinc-700 focus:outline-none focus:border-zinc-500 transition-colors"
+          />
+        </Field>
+
+        <Field label="Start date" hint="Optional — used for prayer times">
+          <input
+            type="date"
+            value={form.startDate}
+            onChange={e => set('startDate', e.target.value)}
+            className="w-full px-4 py-3 rounded-md bg-black border border-zinc-800 text-white
+              text-sm focus:outline-none focus:border-zinc-500 transition-colors
+              [color-scheme:dark]"
           />
         </Field>
 

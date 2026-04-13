@@ -1,18 +1,29 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, KeyRound, Check, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, KeyRound, Check, AlertTriangle, Moon } from 'lucide-react';
 import { loadSettings, saveSettings } from '../utils/storage.js';
+
+const PRAYER_METHODS = [
+  { value: 2, label: 'ISNA — Islamic Society of North America' },
+  { value: 3, label: 'MWL — Muslim World League' },
+  { value: 4, label: 'Umm al-Qura, Makkah' },
+  { value: 5, label: 'Egyptian General Authority of Survey' },
+  { value: 1, label: 'Karachi — Univ. of Islamic Sciences' },
+  { value: 0, label: 'Shafi (standard)' },
+];
 
 export default function Settings({ onBack }) {
   const [gemini, setGemini] = useState('');
+  const [prayerMethod, setPrayerMethod] = useState(2);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     const s = loadSettings();
     setGemini(s.gemini || '');
+    setPrayerMethod(s.prayerMethod ?? 2);
   }, []);
 
   function handleSave() {
-    saveSettings({ gemini });
+    saveSettings({ gemini, prayerMethod });
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   }
@@ -62,6 +73,38 @@ export default function Settings({ onBack }) {
           )}
         </div>
 
+        {/* Prayer times method */}
+        <div className="border border-zinc-800 rounded-lg p-5">
+          <div className="flex items-center gap-2 mb-1">
+            <Moon size={14} className="text-zinc-400" />
+            <h3 className="text-sm font-semibold text-white">Prayer times calculation</h3>
+            <span className="ml-auto text-xs text-zinc-600 border border-zinc-800 px-2 py-0.5 rounded-md">No key needed</span>
+          </div>
+          <p className="text-xs text-zinc-600 mb-4 leading-relaxed">
+            Chooses which juristic method is used to calculate prayer times via the Aladhan API.
+          </p>
+          <div className="flex flex-col gap-2">
+            {PRAYER_METHODS.map(m => (
+              <button
+                key={m.value}
+                type="button"
+                onClick={() => setPrayerMethod(m.value)}
+                className={`flex items-center justify-between px-4 py-2.5 rounded-md border text-left
+                  transition-all duration-150 ${
+                    prayerMethod === m.value
+                      ? 'border-white bg-white text-black'
+                      : 'border-zinc-800 text-zinc-400 hover:border-zinc-600 hover:text-white'
+                  }`}
+              >
+                <span className={`text-sm ${prayerMethod === m.value ? 'text-black' : 'text-white'}`}>
+                  {m.label}
+                </span>
+                {prayerMethod === m.value && <Check size={13} className="flex-shrink-0" />}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Map note */}
         <div className="border border-zinc-800 rounded-lg p-5">
           <div className="flex items-center gap-2 mb-2">
@@ -77,7 +120,7 @@ export default function Settings({ onBack }) {
         <div className="border border-zinc-800 rounded-lg p-4 flex gap-3">
           <AlertTriangle size={14} className="text-zinc-500 flex-shrink-0 mt-0.5" />
           <p className="text-xs text-zinc-600 leading-relaxed">
-            Your key is stored in your browser's localStorage only. Nothing is sent to any server
+            Your API key is stored in your browser's localStorage only. Nothing is sent to any server
             other than Google's API directly.
           </p>
         </div>
