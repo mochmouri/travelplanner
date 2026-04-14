@@ -1,9 +1,10 @@
-import { Star, Coffee, CircleDot, ChevronUp, ChevronDown, MoveRight } from 'lucide-react';
+import { Star, Coffee, CircleDot, ChevronUp, ChevronDown, MoveRight, Map, Moon, Clock } from 'lucide-react';
 
 const CATEGORY_META = {
-  'must-see': { label: 'Must-see',  Icon: Star,       textClass: 'text-white',   borderClass: 'border-white/20' },
-  'optional':  { label: 'Optional',  Icon: CircleDot,  textClass: 'text-zinc-400', borderClass: 'border-zinc-700' },
-  'food':      { label: 'Food',      Icon: Coffee,     textClass: 'text-zinc-300', borderClass: 'border-zinc-600' },
+  'must-see': { label: 'Must-see',      Icon: Star,      textClass: 'text-text',        borderClass: 'border-hi' },
+  'optional':  { label: 'Optional',     Icon: CircleDot, textClass: 'text-muted',       borderClass: 'border-border' },
+  'food':      { label: 'Food',         Icon: Coffee,    textClass: 'text-muted',        borderClass: 'border-hi' },
+  'mosque':    { label: 'Prayer space', Icon: Moon,      textClass: 'text-mosque-text',  borderClass: 'border-mosque-border' },
 };
 
 function fmt(mins) {
@@ -28,7 +29,7 @@ export default function PlaceCard({
 
   return (
     <div
-      className={`rounded-lg border bg-zinc-950 transition-all duration-150 ${meta.borderClass}`}
+      className={`rounded-lg border bg-surface transition-all duration-150 ${meta.borderClass}`}
       style={dayColor ? { borderLeftColor: dayColor, borderLeftWidth: 2 } : {}}
     >
       <div className="p-4">
@@ -39,14 +40,14 @@ export default function PlaceCard({
               <button
                 onClick={onMoveUp}
                 disabled={!onMoveUp}
-                className="text-zinc-700 hover:text-zinc-300 disabled:opacity-20 disabled:cursor-default transition-colors"
+                className="text-faint hover:text-text disabled:opacity-20 disabled:cursor-default transition-colors"
               >
                 <ChevronUp size={14} />
               </button>
               <button
                 onClick={onMoveDown}
                 disabled={!onMoveDown}
-                className="text-zinc-700 hover:text-zinc-300 disabled:opacity-20 disabled:cursor-default transition-colors"
+                className="text-faint hover:text-text disabled:opacity-20 disabled:cursor-default transition-colors"
               >
                 <ChevronDown size={14} />
               </button>
@@ -55,18 +56,32 @@ export default function PlaceCard({
 
           <div className="flex-1 min-w-0">
             <div className="flex items-start justify-between gap-3 mb-2">
-              <p className="font-semibold text-white text-sm leading-snug tracking-tight">{place.name}</p>
-              {onRemove && (
-                <button
-                  onClick={onRemove}
-                  className="flex-shrink-0 text-zinc-700 hover:text-white transition-colors mt-0.5"
-                  aria-label="Remove"
-                >
-                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                    <path d="M1 1l10 10M11 1L1 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                  </svg>
-                </button>
-              )}
+              <p className="font-semibold text-text text-sm leading-snug tracking-tight">{place.name}</p>
+              <div className="flex items-center gap-2 flex-shrink-0 mt-0.5">
+                {place.lat && place.lng && (
+                  <a
+                    href={`https://maps.google.com/?q=${place.lat},${place.lng}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-faint hover:text-text transition-colors"
+                    aria-label="Open in Google Maps"
+                    title="Open in Google Maps"
+                  >
+                    <Map size={12} />
+                  </a>
+                )}
+                {onRemove && (
+                  <button
+                    onClick={onRemove}
+                    className="text-faint hover:text-text transition-colors"
+                    aria-label="Remove"
+                  >
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                      <path d="M1 1l10 10M11 1L1 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                    </svg>
+                  </button>
+                )}
+              </div>
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
@@ -74,7 +89,7 @@ export default function PlaceCard({
                 <select
                   value={place.category}
                   onChange={e => onCategoryChange(e.target.value)}
-                  className={`text-xs px-2 py-0.5 rounded border bg-transparent cursor-pointer
+                  className={`text-xs px-2 py-0.5 rounded border bg-surface cursor-pointer
                     focus:outline-none ${meta.textClass} ${meta.borderClass}`}
                 >
                   <option value="must-see">Must-see</option>
@@ -89,20 +104,28 @@ export default function PlaceCard({
               )}
 
               {place.durationMinutes && (
-                <span className="text-xs text-zinc-600">{fmt(place.durationMinutes)}</span>
+                <span className="text-xs text-faint">{fmt(place.durationMinutes)}</span>
               )}
 
               {place.cuisine && (
-                <span className="text-xs text-zinc-500">{place.cuisine}</span>
+                <span className="text-xs text-muted">{place.cuisine}</span>
               )}
             </div>
 
             {!compact && place.description && (
-              <p className="text-xs text-zinc-500 leading-relaxed mt-2">{place.description}</p>
+              <p className="text-xs text-muted leading-relaxed mt-2">{place.description}</p>
             )}
 
             {!compact && place.notes && (
-              <p className="text-xs text-zinc-400 mt-1.5 border-l border-zinc-700 pl-2">{place.notes}</p>
+              <p className="text-xs text-muted mt-1.5 border-l border-border pl-2">{place.notes}</p>
+            )}
+
+            {!compact && place.openingHours && (
+              <p className="flex items-center gap-1.5 text-xs text-faint mt-1.5">
+                <Clock size={10} className="flex-shrink-0" />
+                {place.openingHours}
+                <span className="opacity-50">· AI estimate</span>
+              </p>
             )}
           </div>
         </div>
@@ -111,16 +134,16 @@ export default function PlaceCard({
       {/* Move-to-day row */}
       {onMoveToDay && numDays > 1 && (
         <div className="px-4 pb-3 flex flex-wrap items-center gap-2">
-          <MoveRight size={11} className="text-zinc-700" />
-          <span className="text-xs text-zinc-700">Move to:</span>
+          <MoveRight size={11} className="text-faint" />
+          <span className="text-xs text-faint">Move to:</span>
           {Array.from({ length: numDays }, (_, i) => i + 1)
             .filter(d => d !== place.day)
             .map(d => (
               <button
                 key={d}
                 onClick={() => onMoveToDay(d)}
-                className="text-xs px-2 py-0.5 rounded border border-zinc-800 text-zinc-400
-                  hover:border-zinc-600 hover:text-white transition-colors"
+                className="text-xs px-2 py-0.5 rounded border border-border text-muted
+                  hover:border-hi hover:text-text transition-colors"
               >
                 Day {d}
               </button>

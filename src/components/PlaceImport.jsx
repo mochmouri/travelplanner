@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { ArrowLeft, ArrowRight, Plus, RefreshCw, AlertCircle } from 'lucide-react';
-import { suggestAttractions, suggestRestaurants, geocodePlace } from '../utils/ai.js';
+import { suggestAttractions, suggestRestaurants, suggestMosques, geocodePlace } from '../utils/ai.js';
 import { getApiKey } from '../utils/storage.js';
 import PlaceCard from './PlaceCard.jsx';
 
@@ -8,9 +8,9 @@ function Section({ label, count, children }) {
   return (
     <div className="mb-8">
       <div className="flex items-center gap-3 mb-4">
-        <p className="text-xs font-medium text-zinc-400 uppercase tracking-widest">{label}</p>
-        <span className="text-xs text-zinc-700 tabular-nums">({count})</span>
-        <div className="flex-1 h-px bg-zinc-900" />
+        <p className="text-xs font-medium text-muted uppercase tracking-widest">{label}</p>
+        <span className="text-xs text-faint tabular-nums">({count})</span>
+        <div className="flex-1 h-px bg-line" />
       </div>
       <div className="flex flex-col gap-2">{children}</div>
     </div>
@@ -33,15 +33,20 @@ export default function PlaceImport({ trip, onConfirm, onBack }) {
     setLoading(true);
     try {
       setLoadingStage('Fetching attractions…');
-      const [attractions, restaurants] = await Promise.all([
+      const [attractions, restaurants, mosques] = await Promise.all([
         suggestAttractions(trip.destination, trip.numDays, trip.focus),
         (async () => {
           await new Promise(r => setTimeout(r, 600));
           setLoadingStage('Finding halal restaurants…');
           return suggestRestaurants(trip.destination);
         })(),
+        (async () => {
+          await new Promise(r => setTimeout(r, 1200));
+          setLoadingStage('Finding prayer spaces…');
+          return suggestMosques(trip.destination);
+        })(),
       ]);
-      setPlaces([...attractions, ...restaurants]);
+      setPlaces([...attractions, ...restaurants, ...mosques]);
     } catch (err) {
       setError(err.message === 'NO_KEY'
         ? 'No Gemini API key. Add one in Settings.'
@@ -81,38 +86,42 @@ export default function PlaceImport({ trip, onConfirm, onBack }) {
   const mustSee  = places.filter(p => p.category === 'must-see');
   const optional = places.filter(p => p.category === 'optional');
   const food     = places.filter(p => p.category === 'food');
+  const mosques  = places.filter(p => p.category === 'mosque');
+
+  const inputCls = `px-4 py-2.5 rounded-md bg-surface border border-border text-text text-sm
+    placeholder-faint focus:outline-none focus:border-hi`;
 
   if (loading) {
     return (
       <div className="min-h-svh flex flex-col items-center justify-center gap-4 animate-fade-up">
-        <div className="w-6 h-6 border border-white border-t-transparent rounded-full animate-spin" />
-        <p className="text-sm text-zinc-300 font-medium">{loadingStage}</p>
-        <p className="text-xs text-zinc-600">~15 seconds</p>
+        <div className="w-6 h-6 border-2 border-text border-t-transparent rounded-full animate-spin" />
+        <p className="text-sm text-text font-medium">{loadingStage}</p>
+        <p className="text-xs text-faint">~15 seconds</p>
       </div>
     );
   }
 
   return (
-    <div className="px-5 py-10 max-w-xl mx-auto w-full animate-fade-up">
+    <div className="px-5 py-10 max-w-xl mx-auto w-full animate-fade-up md:max-w-2xl">
       <div className="flex items-center gap-3 mb-2">
         <button
           onClick={onBack}
-          className="p-2 rounded-md border border-zinc-800 text-zinc-500
-            hover:border-zinc-600 hover:text-white transition-all duration-150"
+          className="p-2 rounded-md border border-border text-muted
+            hover:border-hi hover:text-text transition-all duration-150"
         >
           <ArrowLeft size={16} />
         </button>
         <div className="flex-1 min-w-0">
-          <p className="text-xs text-zinc-600 uppercase tracking-widest font-medium">Review</p>
-          <h2 className="text-xl font-bold text-white tracking-tight">
+          <p className="text-xs text-faint uppercase tracking-widest font-medium">Review</p>
+          <h2 className="text-xl font-bold text-text tracking-tight">
             {trip.destination}
           </h2>
         </div>
         {places.length > 0 && (
           <button
             onClick={fetchSuggestions}
-            className="p-2 rounded-md border border-zinc-800 text-zinc-500
-              hover:border-zinc-600 hover:text-white transition-all duration-150"
+            className="p-2 rounded-md border border-border text-muted
+              hover:border-hi hover:text-text transition-all duration-150"
             title="Regenerate suggestions"
           >
             <RefreshCw size={14} />
@@ -121,11 +130,11 @@ export default function PlaceImport({ trip, onConfirm, onBack }) {
       </div>
 
       {error && (
-        <div className="mt-6 p-4 rounded-md border border-zinc-800 flex gap-3">
-          <AlertCircle size={14} className="text-zinc-500 flex-shrink-0 mt-0.5" />
+        <div className="mt-6 p-4 rounded-md border border-border flex gap-3">
+          <AlertCircle size={14} className="text-muted flex-shrink-0 mt-0.5" />
           <div>
-            <p className="text-sm text-zinc-300">{error}</p>
-            <button onClick={fetchSuggestions} className="text-xs text-zinc-500 hover:text-white mt-1 transition-colors">
+            <p className="text-sm text-text">{error}</p>
+            <button onClick={fetchSuggestions} className="text-xs text-muted hover:text-text mt-1 transition-colors">
               Retry
             </button>
           </div>
@@ -133,13 +142,13 @@ export default function PlaceImport({ trip, onConfirm, onBack }) {
       )}
 
       {!hasApiKey && !error && (
-        <div className="mt-6 p-4 rounded-md border border-zinc-800">
-          <p className="text-sm text-zinc-400">Add a Claude API key in Settings to get AI suggestions.</p>
+        <div className="mt-6 p-4 rounded-md border border-border">
+          <p className="text-sm text-muted">Add a Gemini API key in Settings to get AI suggestions.</p>
         </div>
       )}
 
       {places.length > 0 && (
-        <p className="text-xs text-zinc-600 mt-6 mb-8">
+        <p className="text-xs text-faint mt-6 mb-8">
           {places.length} places — remove what you don't want, adjust categories, then confirm.
         </p>
       )}
@@ -177,35 +186,43 @@ export default function PlaceImport({ trip, onConfirm, onBack }) {
         </Section>
       )}
 
+      {mosques.length > 0 && (
+        <Section label="Prayer spaces" count={mosques.length}>
+          {mosques.map(p => (
+            <PlaceCard key={p.id} place={p}
+              onRemove={() => removePlace(p.id)}
+            />
+          ))}
+        </Section>
+      )}
+
       {/* Add manual */}
       <div className="mb-8">
         {!showAddForm ? (
           <button
             onClick={() => setShowAddForm(true)}
             className="w-full flex items-center justify-center gap-2 py-3 rounded-md
-              border border-dashed border-zinc-800 text-zinc-600 text-sm
-              hover:border-zinc-600 hover:text-white transition-all duration-150"
+              border border-dashed border-border text-muted text-sm
+              hover:border-hi hover:text-text transition-all duration-150"
           >
             <Plus size={14} />
             Add a place manually
           </button>
         ) : (
-          <div className="border border-zinc-800 rounded-lg p-5 flex flex-col gap-4">
-            <p className="text-sm font-semibold text-white">Add a place</p>
+          <div className="border border-border rounded-lg p-5 flex flex-col gap-4">
+            <p className="text-sm font-semibold text-text">Add a place</p>
             <input
               type="text"
               placeholder="Place name"
               value={newPlace.name}
               onChange={e => setNewPlace(p => ({ ...p, name: e.target.value }))}
-              className="px-4 py-2.5 rounded-md bg-black border border-zinc-800 text-white text-sm
-                placeholder-zinc-700 focus:outline-none focus:border-zinc-500"
+              className={`${inputCls} w-full`}
             />
             <div className="grid grid-cols-2 gap-3">
               <select
                 value={newPlace.category}
                 onChange={e => setNewPlace(p => ({ ...p, category: e.target.value }))}
-                className="px-3 py-2.5 rounded-md bg-black border border-zinc-800 text-zinc-300
-                  text-sm focus:outline-none focus:border-zinc-500"
+                className={`${inputCls} bg-surface`}
               >
                 <option value="must-see">Must-see</option>
                 <option value="optional">Optional</option>
@@ -216,8 +233,7 @@ export default function PlaceImport({ trip, onConfirm, onBack }) {
                 placeholder="Duration (mins)"
                 value={newPlace.durationMinutes}
                 onChange={e => setNewPlace(p => ({ ...p, durationMinutes: e.target.value }))}
-                className="px-3 py-2.5 rounded-md bg-black border border-zinc-800 text-zinc-300
-                  text-sm focus:outline-none focus:border-zinc-500"
+                className={inputCls}
               />
             </div>
             <textarea
@@ -225,22 +241,21 @@ export default function PlaceImport({ trip, onConfirm, onBack }) {
               value={newPlace.description}
               onChange={e => setNewPlace(p => ({ ...p, description: e.target.value }))}
               rows={2}
-              className="px-4 py-2.5 rounded-md bg-black border border-zinc-800 text-white text-sm
-                placeholder-zinc-700 focus:outline-none focus:border-zinc-500 resize-none"
+              className={`${inputCls} w-full resize-none`}
             />
             <div className="flex gap-2">
               <button
                 onClick={handleAddPlace}
                 disabled={addingPlace || !newPlace.name.trim()}
-                className="flex-1 py-2.5 rounded-md bg-white text-black text-sm font-medium
-                  hover:bg-zinc-100 transition-colors disabled:opacity-40"
+                className="flex-1 py-2.5 rounded-md bg-cta text-cta-fg text-sm font-medium
+                  hover:bg-cta/90 transition-colors disabled:opacity-40"
               >
                 {addingPlace ? 'Adding…' : 'Add place'}
               </button>
               <button
                 onClick={() => setShowAddForm(false)}
-                className="px-4 py-2.5 rounded-md border border-zinc-800 text-zinc-500 text-sm
-                  hover:border-zinc-600 hover:text-white transition-colors"
+                className="px-4 py-2.5 rounded-md border border-border text-muted text-sm
+                  hover:border-hi hover:text-text transition-colors"
               >
                 Cancel
               </button>
@@ -254,8 +269,8 @@ export default function PlaceImport({ trip, onConfirm, onBack }) {
           <button
             onClick={() => onConfirm(places)}
             className="w-full flex items-center justify-between px-5 py-4 rounded-md
-              bg-white text-black font-medium text-sm shadow-2xl shadow-black/80
-              hover:bg-zinc-100 transition-all duration-150 active:scale-[0.99]"
+              bg-cta text-cta-fg font-medium text-sm shadow-2xl shadow-black/20
+              hover:bg-cta/90 transition-all duration-150 active:scale-[0.99]"
           >
             Build route with {places.length} places
             <ArrowRight size={16} />

@@ -5,11 +5,72 @@
 @import "@fontsource/geist/700.css";
 @import "leaflet/dist/leaflet.css";
 
-@theme {
-  --color-amber: #c4914a;
-  --color-amber-dim: #8a6432;
+/* ─── Light theme (default) ─────────────────────────────────── */
+:root {
+  --bg:         #f4f3ef;
+  --surface:    #ffffff;
+  --lift:       #eceae4;
+  --line:       #e5e2da;
+  --border:     #d5d1c8;
+  --hi:         #b5b1a8;
+  --text:       #1a1917;
+  --muted:      #6a6657;
+  --faint:      #9c9790;
+  --cta:        #1a1917;
+  --cta-fg:     #f4f3ef;
+  --danger-border: #fecaca;
+  --danger-text:   #b91c1c;
+  --danger-bg:     #fef2f2;
+  --mosque-border: #99f6e4;
+  --mosque-text:   #0f766e;
+  --mosque-bg:     #f0fdfa;
 }
 
+/* ─── Dark theme ─────────────────────────────────────────────── */
+html.dark {
+  --bg:         #0a0a0a;
+  --surface:    #111111;
+  --lift:       #1a1a1a;
+  --line:       #191919;
+  --border:     #252525;
+  --hi:         #3a3a3a;
+  --text:       #f0eeeb;
+  --muted:      #888582;
+  --faint:      #444240;
+  --cta:        #f0eeeb;
+  --cta-fg:     #0a0a0a;
+  --danger-border: #7f1d1d;
+  --danger-text:   #f87171;
+  --danger-bg:     #450a0a;
+  --mosque-border: rgba(19,78,74,0.5);
+  --mosque-text:   #2dd4bf;
+  --mosque-bg:     transparent;
+}
+
+/* ─── Tailwind tokens (resolved at runtime via CSS vars) ─────── */
+@theme inline {
+  --color-amber:          #c4914a;
+  --color-amber-dim:      #8a6432;
+  --color-bg:             var(--bg);
+  --color-surface:        var(--surface);
+  --color-lift:           var(--lift);
+  --color-line:           var(--line);
+  --color-border:         var(--border);
+  --color-hi:             var(--hi);
+  --color-text:           var(--text);
+  --color-muted:          var(--muted);
+  --color-faint:          var(--faint);
+  --color-cta:            var(--cta);
+  --color-cta-fg:         var(--cta-fg);
+  --color-danger-border:  var(--danger-border);
+  --color-danger-text:    var(--danger-text);
+  --color-danger-bg:      var(--danger-bg);
+  --color-mosque-border:  var(--mosque-border);
+  --color-mosque-text:    var(--mosque-text);
+  --color-mosque-bg:      var(--mosque-bg);
+}
+
+/* ─── Animations ─────────────────────────────────────────────── */
 @keyframes fadeUp {
   from { opacity: 0; transform: translateY(12px); }
   to   { opacity: 1; transform: translateY(0); }
@@ -34,18 +95,20 @@
 .animate-bar-grow { animation: barGrow 1s ease-out both; }
 .animate-spin     { animation: spin 0.7s linear infinite; }
 
+/* ─── Focus ring ─────────────────────────────────────────────── */
 :focus-visible {
   outline: 2px solid #c4914a;
   outline-offset: 2px;
   border-radius: 3px;
 }
 
+/* ─── Base ───────────────────────────────────────────────────── */
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 html, body {
   font-family: 'Geist', system-ui, sans-serif;
-  background: #0a0a0a;
-  color: #a0a0a0;
+  background: var(--bg);
+  color: var(--text);
   min-height: 100svh;
   -webkit-font-smoothing: antialiased;
 }
@@ -56,22 +119,23 @@ html, body {
   flex-direction: column;
 }
 
-/* Leaflet dark map overrides */
+/* ─── Leaflet ────────────────────────────────────────────────── */
+/* Map tiles stay dark always; theme the popups and controls */
 .leaflet-container {
   background: #0e0e0e;
   font-family: 'Geist', system-ui, sans-serif;
 }
 
 .leaflet-popup-content-wrapper {
-  background: #111;
-  border: 1px solid #222;
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: 8px;
-  box-shadow: 0 4px 24px rgba(0,0,0,0.6);
-  color: #e0e0e0;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.25);
+  color: var(--text);
 }
 
 .leaflet-popup-tip {
-  background: #111;
+  background: var(--surface);
 }
 
 .leaflet-popup-content {
@@ -80,6 +144,7 @@ html, body {
   line-height: 1.5;
 }
 
+/* Zoom controls remain dark to match the dark tiles */
 .leaflet-control-zoom a {
   background: #111 !important;
   color: #fff !important;
@@ -98,7 +163,7 @@ html, body {
 
 .leaflet-control-attribution a { color: #555 !important; }
 
-/* Scrollbar */
+/* ─── Scrollbar ──────────────────────────────────────────────── */
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #222; border-radius: 2px; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }

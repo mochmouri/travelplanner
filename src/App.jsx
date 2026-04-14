@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import LandingPage from './components/LandingPage.jsx';
 import Dashboard from './components/Dashboard.jsx';
 import TripSetup from './components/TripSetup.jsx';
@@ -7,72 +7,75 @@ import RouteBuilder from './components/RouteBuilder.jsx';
 import ItineraryView from './components/ItineraryView.jsx';
 import Settings from './components/Settings.jsx';
 import useTrip from './hooks/useTrip.js';
-import { saveTrip, loadTrips } from './utils/storage.js';
+import { saveTrip, loadTrips, loadSettings } from './utils/storage.js';
 
 export default function App() {
   const [screen, setScreen] = useState('landing');
   const [prevScreen, setPrevScreen] = useState('landing');
   const { trip, initTrip, loadTrip, arrangeAndSave, movePlaceToDay, addFoodToRoute, reorderPlace, setAccommodation, setHalalGuide } = useTrip();
 
+  // Apply dark mode from saved setting or OS preference on mount.
+  // OS preference changes are tracked only when no explicit setting is saved.
+  useEffect(() => {
+    const settings = loadSettings();
+    if (settings.darkMode !== undefined) {
+      document.documentElement.classList.toggle('dark', settings.darkMode);
+    } else {
+      const mq = window.matchMedia('(prefers-color-scheme: dark)');
+      document.documentElement.classList.toggle('dark', mq.matches);
+      const handler = e => document.documentElement.classList.toggle('dark', e.matches);
+      mq.addEventListener('change', handler);
+      return () => mq.removeEventListener('change', handler);
+    }
+  }, []);
+
   function go(to) {
     setPrevScreen(screen);
     setScreen(to);
   }
 
-  // Landing → Setup (new trip)
   function handlePlanTrip() { go('setup'); }
+  function handleOpenApp()  { go('dashboard'); }
+  function handleNewTrip()  { go('setup'); }
 
-  // Landing → Dashboard
-  function handleOpenApp() { go('dashboard'); }
-
-  // Dashboard → Setup (new trip)
-  function handleNewTrip() { go('setup'); }
-
-  // Dashboard → open existing trip
   function handleOpenTrip(existing) {
     loadTrip(existing);
     go('builder');
   }
 
-  // Setup → Import
   function handleSetupSubmit(meta) {
     initTrip({ ...meta, name: meta.name || meta.destination });
     go('import');
   }
 
-  // Import → Builder
   function handleImportConfirm(places) {
-    const { places: routed } = arrangeAndSave(places, trip.numDays);
+    arrangeAndSave(places, trip.numDays);
     go('builder');
   }
 
-  // Builder → Itinerary
   function handleContinueToItinerary() { go('itinerary'); }
 
-  // Itinerary: set accommodation
-  function handleSetAccommodation(accom) {
-    setAccommodation(accom);
-  }
+  function handleSetAccommodation(accom) { setAccommodation(accom); }
 
-  // Back navigation
   function handleBack() {
     const backMap = {
       dashboard: 'landing',
-      setup: prevScreen || 'landing',
-      import: 'setup',
-      builder: 'dashboard',
+      setup:     prevScreen || 'landing',
+      import:    'setup',
+      builder:   'dashboard',
       itinerary: 'builder',
-      settings: prevScreen,
+      settings:  prevScreen,
     };
     go(backMap[screen] || 'landing');
   }
 
   return (
-    <div className="min-h-svh">
+    <div className="min-h-svh bg-bg text-text">
       {screen === 'landing' && (
         <LandingPage
           onPlanTrip={handlePlanTrip}
           onOpenApp={handleOpenApp}
+          onSettings={() => go('settings')}
           hasTrips={loadTrips().length > 0}
         />
       )}
